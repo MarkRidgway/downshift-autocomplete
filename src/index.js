@@ -1,68 +1,100 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
-import Downshift from 'downshift';
-import { all as starWarsNames } from 'starwars-names';
-import { matchSorter } from 'match-sorter';
+import React, { Component } from "react";
+import ReactDOM from "react-dom";
+import Downshift from "downshift";
+import axios from "axios";
 
-const items = starWarsNames.map((name) => ({
-  value: name,
-  id: name.toLowerCase(),
-}));
+import "./styles.css";
 
-const getItems = value => value ? matchSorter(items, value, {keys: ['value']}) : items;
+class DownshiftTwo extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      movies: []
+    };
 
-const itemToString = item => item ? item.value : '';
-
-const stateReducer = (state, changes) => {
-  if(changes.type === Downshift.stateChangeTypes.blurButton) {
-    return {...changes, isOpen: true };
+    this.fetchMovies = this.fetchMovies.bind(this);
+    this.inputOnChange = this.inputOnChange.bind(this);
   }
 
-  return changes;
-}
+  inputOnChange(event) {
+    if (!event.target.value) {
+      return;
+    }
+    this.fetchMovies(event.target.value);
+  }
 
-class App extends React.Component {
+  downshiftOnChange(selectedMovie) {
+    alert(`your favourite movie is ${selectedMovie.title}`);
+  }
+
+  fetchMovies(movie) {
+    const moviesURL = `https://api.themoviedb.org/3/search/movie?api_key=1b5adf76a72a13bad99b8fc0c68cb085&query=${movie}`;
+    axios.get(moviesURL).then(response => {
+      this.setState({ movies: response.data.results });
+    });
+  }
+
   render() {
     return (
-      <div>
-        <h1>Autocomplete rocks!</h1>
-        <div>
-          <Downshift stateReducer={stateReducer} itemToString={itemToString}>
-            {({
-              clearSelection,
-              getInputProps,
-              getItemProps,
-              getLabelProps,
-              getMenuProps,
-              getToggleButtonProps,
-              inputValue,
-              isOpen,
-              selectedItem,
-            }) => (
-              <div>
-                <label {...getLabelProps()} >Select a Star Wars Character</label>
-                <input {...getInputProps()} />
-                <button {...getToggleButtonProps()}>{isOpen ? 'close' : 'open' }</button>
-                {selectedItem ? <button onClick={clearSelection}>x</button> : null}
-                <ul {...getMenuProps({style: {maxHeight: 300, overflowY: 'scroll'}})}>
-                  { isOpen
-                    ? getItems(inputValue).map((item) => (
-                      <li {...getItemProps({
-                        item,
-                        key: item.id,
-                      })}>
-                        {item.value}
-                      </li>
-                    ))
-                    : null }
-                </ul>
+      <Downshift
+        onChange={this.downshiftOnChange}
+        itemToString={item => (item ? item.title : "")}
+      >
+        {({
+          selectedItem,
+          getInputProps,
+          getItemProps,
+          highlightedIndex,
+          isOpen,
+          inputValue,
+          getLabelProps
+        }) => (
+          <div>
+            <label
+              style={{ marginTop: "1rem", display: "block" }}
+              {...getLabelProps()}
+            >
+              Choose your favourite movie
+            </label>{" "}
+            <br />
+            <input
+              {...getInputProps({
+                placeholder: "Search movies",
+                onChange: this.inputOnChange
+              })}
+            />
+            {isOpen ? (
+              <div className="downshift-dropdown">
+                {this.state.movies
+                  .filter(
+                    item =>
+                      !inputValue ||
+                      item.title
+                        .toLowerCase()
+                        .includes(inputValue.toLowerCase())
+                  )
+                  .slice(0, 10)
+                  .map((item, index) => (
+                    <div
+                      className="dropdown-item"
+                      {...getItemProps({ key: index, index, item })}
+                      style={{
+                        backgroundColor:
+                          highlightedIndex === index ? "lightgray" : "white",
+                        fontWeight: selectedItem === item ? "bold" : "normal"
+                      }}
+                    >
+                      {item.title}
+                    </div>
+                  ))}
               </div>
-            )}
-          </Downshift>
-        </div>
-      </div>
+            ) : null}
+          </div>
+        )}
+      </Downshift>
     );
   }
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+const rootElement = document.getElementById("root");
+ReactDOM.render(<DownshiftTwo />, rootElement);
